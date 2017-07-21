@@ -69,7 +69,7 @@ static ParseINI_Errors ParseINI_cast2hour (const char* string, uint8_t length, v
     char* ptr2;
 
     // 2 char for hour, plus 1 char for separator and 2 char for minute
-    if (length > 6) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
+    if (length > 5) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
 
     // Clear all the contents
     hours->hours = 0;
@@ -111,7 +111,60 @@ static ParseINI_Errors ParseINI_cast2hour (const char* string, uint8_t length, v
 
 static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, void* param)
 {
-    // FIXME
+    uint32_t* ip = (uint32_t*)param;
+    uint8_t value;
+    uint8_t valueLength;
+    char* ptr1;
+    char* ptr2;
+    char* ptr3;
+    uint8_t count = 0;
+
+    // 3 char for each value, plus 3 char for separators
+    if ((length > 15) || (length < 7)) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
+
+    // Clear all the contents
+    *ip = 0;
+
+    ptr3 = ptr1 = string;
+
+    while (ptr3 = strchr(ptr3,'.'))
+    {
+        ptr3++;
+        count++;
+    }
+    // Check if point into the string are three
+    if (count != 3) return PARSEINIERRORS_PARAM_WRONG_FORMAT;
+
+    // Check all field
+    for (count = 0; count < 4; count++)
+    {
+        ptr2 = strchr(ptr1,'.');
+        // Clear the separator with end string
+        if (ptr2)
+            *ptr2 = '\0';
+
+        valueLength = strlen(ptr1);
+        if (count == 3)
+        {
+            if (*(ptr1+valueLength-2) == '\r')
+                valueLength -= 2;
+            else
+                valueLength -= 1;
+        }
+
+        // Convert the string into numbers
+        if (dtu8(ptr1,&value,valueLength) != ERRORS_UTILITY_CONVERSION_OK)
+        {
+            *ip = 0; // Reset result
+            return PARSEINIERRORS_PARAM_WRONG_CONVERSION;
+        }
+        *ip = value + ((*ip) << 8);
+
+        // Move the second pointer forward
+        ptr1 = ptr2 + 1;
+    }
+
+    return PARSEINIERRORS_OK;
 }
 
 ParseINI_Errors ParseINI_open (ParseINI_FileHandle dev)
@@ -198,9 +251,10 @@ ParseINI_Errors ParseINI_get (ParseINI_FileHandle dev,
                 return ParseINI_cast2u16(pointer,paramLength,value);
             case PARSEINIVARTYPE_HOUR:
                 return ParseINI_cast2hour(pointer,paramLength,value);
+            case PARSEINIVARTYPE_IP:
+                return ParseINI_cast2ip(pointer,paramLength,value);
             case PARSEINIVARTYPE_FLOAT:
             case PARSEINIVARTYPE_STRING:
-            case PARSEINIVARTYPE_IP:
             default:
                 return PARSEINIERRORS_WRONG_TYPE;
             }
