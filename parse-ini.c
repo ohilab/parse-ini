@@ -167,6 +167,11 @@ static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, voi
     return PARSEINIERRORS_OK;
 }
 
+static ParseINI_Errors ParseINI_cast2string (const char* string, uint8_t length, void* param)
+{
+
+}
+
 ParseINI_Errors ParseINI_open (ParseINI_FileHandle dev)
 {
     // Open file in reading mode
@@ -253,8 +258,9 @@ ParseINI_Errors ParseINI_get (ParseINI_FileHandle dev,
                 return ParseINI_cast2hour(pointer,paramLength,value);
             case PARSEINIVARTYPE_IP:
                 return ParseINI_cast2ip(pointer,paramLength,value);
-            case PARSEINIVARTYPE_FLOAT:
             case PARSEINIVARTYPE_STRING:
+                return ParseINI_cast2string(pointer,paramLength,value);
+            case PARSEINIVARTYPE_FLOAT:
             default:
                 return PARSEINIERRORS_WRONG_TYPE;
             }
