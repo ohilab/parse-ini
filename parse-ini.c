@@ -122,6 +122,9 @@ static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, voi
     // 3 char for each value, plus 3 char for separators
     if ((length > 15) || (length < 7)) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
 
+    // Check validity
+    if (!Utility_isValidIp4Address(string)) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
+
     // Clear all the contents
     *ip = 0;
 
@@ -148,7 +151,9 @@ static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, voi
         {
             if (*(ptr1+valueLength-2) == '\r')
                 valueLength -= 2;
-            else
+            else if (*(ptr1+valueLength-1) == '\r')
+                valueLength -= 1;
+            else if (*(ptr1+valueLength-1) == '\n')
                 valueLength -= 1;
         }
 
@@ -165,6 +170,11 @@ static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, voi
     }
 
     return PARSEINIERRORS_OK;
+}
+
+static ParseINI_Errors ParseINI_cast2mac (const char* string, uint8_t length, void* param)
+{
+
 }
 
 static ParseINI_Errors ParseINI_cast2string (const char* string, uint8_t length, void* param)
@@ -258,6 +268,8 @@ ParseINI_Errors ParseINI_get (ParseINI_FileHandle dev,
                 return ParseINI_cast2hour(pointer,paramLength,value);
             case PARSEINIVARTYPE_IP:
                 return ParseINI_cast2ip(pointer,paramLength,value);
+            case PARSEINIVARTYPE_MAC:
+                return ParseINI_cast2mac(pointer,paramLength,value);
             case PARSEINIVARTYPE_STRING:
                 return ParseINI_cast2string(pointer,paramLength,value);
             case PARSEINIVARTYPE_FLOAT:
