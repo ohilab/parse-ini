@@ -1,5 +1,6 @@
 /******************************************************************************
- * Copyright (C) 2017 Matteo Civale
+ * ParseINI - A small library for parsing INI file
+ * Copyright (C) 2017-2018 Matteo Civale
  *
  * Authors:
  *  Matteo Civale
@@ -111,7 +112,8 @@ static ParseINI_Errors ParseINI_cast2hour (const char* string, uint8_t length, v
 
 static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, void* param)
 {
-    uint32_t* ip = (uint32_t*)param;
+    uint8_t* ip = (uint8_t*)param;
+    char copyString[PARSEINI_STRING_BUFFER_LENGTH];
     uint8_t value;
     uint8_t valueLength;
     char* ptr1;
@@ -119,16 +121,25 @@ static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, voi
     char* ptr3;
     uint8_t count = 0;
 
-    // 3 char for each value, plus 3 char for separators
-    if ((length > 15) || (length < 7)) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
+    // Copy the original string
+    strncpy(copyString, string, PARSEINI_STRING_BUFFER_LENGTH);
+    ptr1 = copyString;
+
+    // Search and delete end-line
+    while (ptr1)
+    {
+        if ((*ptr1 == '\r') || (*ptr1 == '\n'))
+        {
+            *ptr1 = '\0';
+            break;
+        }
+        ptr1++;
+    }
 
     // Check validity
-    if (!Utility_isValidIp4Address(string)) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
+    if (!Utility_isValidIp4Address(copyString)) return PARSEINIERRORS_PARAM_WRONG_FORMAT;
 
-    // Clear all the contents
-    *ip = 0;
-
-    ptr3 = ptr1 = string;
+    ptr3 = ptr1 = copyString;
 
     while (ptr3 = strchr(ptr3,'.'))
     {
@@ -147,23 +158,13 @@ static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, voi
             *ptr2 = '\0';
 
         valueLength = strlen(ptr1);
-        if (count == 3)
-        {
-            if (*(ptr1+valueLength-2) == '\r')
-                valueLength -= 2;
-            else if (*(ptr1+valueLength-1) == '\r')
-                valueLength -= 1;
-            else if (*(ptr1+valueLength-1) == '\n')
-                valueLength -= 1;
-        }
 
         // Convert the string into numbers
         if (dtu8(ptr1,&value,valueLength) != ERRORS_UTILITY_CONVERSION_OK)
         {
-            *ip = 0; // Reset result
             return PARSEINIERRORS_PARAM_WRONG_CONVERSION;
         }
-        *ip = value + ((*ip) << 8);
+        ip[count] = value;
 
         // Move the second pointer forward
         ptr1 = ptr2 + 1;
@@ -174,7 +175,65 @@ static ParseINI_Errors ParseINI_cast2ip (const char* string, uint8_t length, voi
 
 static ParseINI_Errors ParseINI_cast2mac (const char* string, uint8_t length, void* param)
 {
+    uint8_t* macAddr = (uint8_t*)param;
+    char copyString[PARSEINI_STRING_BUFFER_LENGTH];
+    uint8_t value;
+    uint8_t valueLength;
+    char* ptr1;
+    char* ptr2;
+    char* ptr3;
+    uint8_t count = 0;
 
+    // Copy the original string
+    strncpy(copyString, string, PARSEINI_STRING_BUFFER_LENGTH);
+    ptr1 = copyString;
+
+    // Search and delete end-line
+    while (ptr1)
+    {
+        if ((*ptr1 == '\r') || (*ptr1 == '\n'))
+        {
+            *ptr1 = '\0';
+            break;
+        }
+        ptr1++;
+    }
+
+    // Check validity
+    if (!Utility_isValidMacAddress(copyString)) return PARSEINIERRORS_PARAM_WRONG_LENGTH;
+
+    ptr3 = ptr1 = copyString;
+
+    while (ptr3 = strchr(ptr3,':'))
+    {
+        ptr3++;
+        count++;
+    }
+    // Check if colon into the string are five
+    if (count != 5) return PARSEINIERRORS_PARAM_WRONG_FORMAT;
+
+    // Check all field
+    for (count = 0; count < 6; count++)
+    {
+        ptr2 = strchr(ptr1,':');
+        // Clear the separator with end string
+        if (ptr2)
+            *ptr2 = '\0';
+
+        valueLength = strlen(ptr1);
+
+        // Convert the hex string into numbers
+        if (xtu8(ptr1,&value,valueLength) != ERRORS_UTILITY_CONVERSION_OK)
+        {
+            return PARSEINIERRORS_PARAM_WRONG_CONVERSION;
+        }
+        macAddr[count] = value;
+
+        // Move the second pointer forward
+        ptr1 = ptr2 + 1;
+    }
+
+    return PARSEINIERRORS_OK;
 }
 
 static ParseINI_Errors ParseINI_cast2string (const char* string, uint8_t length, void* param)
@@ -266,9 +325,9 @@ ParseINI_Errors ParseINI_get (ParseINI_FileHandle dev,
                 return ParseINI_cast2u16(pointer,paramLength,value);
             case PARSEINIVARTYPE_HOUR:
                 return ParseINI_cast2hour(pointer,paramLength,value);
-            case PARSEINIVARTYPE_IP:
+            case PARSEINIVARTYPE_IP_ADDR:
                 return ParseINI_cast2ip(pointer,paramLength,value);
-            case PARSEINIVARTYPE_MAC:
+            case PARSEINIVARTYPE_MAC_ADDR:
                 return ParseINI_cast2mac(pointer,paramLength,value);
             case PARSEINIVARTYPE_STRING:
                 return ParseINI_cast2string(pointer,paramLength,value);

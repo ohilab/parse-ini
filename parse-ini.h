@@ -1,5 +1,6 @@
 /******************************************************************************
- * Copyright (C) 2017 Matteo Civale
+ * ParseINI - A small library for parsing INI file
+ * Copyright (C) 2017-2018 Matteo Civale
  *
  * Authors:
  *  Matteo Civale
